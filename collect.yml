@@ -1,0 +1,41 @@
+name: collect-briefing-data
+
+on:
+  schedule:
+    # Two UTC hours per run to cover summer/winter time; collect.py only proceeds
+    # when it is 04:xx (morning) or 17:xx (evening) in Vienna.
+    - cron: "0 2,3 * * *"
+    - cron: "0 15,16 * * *"
+  workflow_dispatch: {}   # manual run: "Run workflow" button (always collects)
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install feedparser requests
+
+      - name: Collect feeds, trends and weather
+        env:
+          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+        run: python collect.py
+
+      - name: Commit data
+        run: |
+          git config user.name "briefing-bot"
+          git config user.email "briefing-bot@users.noreply.github.com"
+          git add data/briefing.json
+          git diff --cached --quiet || (git commit -m "Update briefing data" && git push)
