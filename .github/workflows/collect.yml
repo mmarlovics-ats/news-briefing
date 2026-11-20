@@ -7,6 +7,11 @@ on:
     - cron: "0 2,3 * * *"
     - cron: "0 15,16 * * *"
   workflow_dispatch: {}   # manual run: "Run workflow" button (always collects)
+  push:                   # also runs right after this file or collect.py is changed
+    branches: [main]
+    paths:
+      - "collect.py"
+      - ".github/workflows/collect.yml"
 
 permissions:
   contents: write
@@ -30,7 +35,7 @@ jobs:
 
       - name: Collect feeds, trends and weather
         env:
-          FORCE: ${{ github.event_name == 'workflow_dispatch' && '1' || '' }}
+          FORCE: ${{ github.event_name != 'schedule' && '1' || '' }}
         run: python collect.py
 
       - name: Commit data
